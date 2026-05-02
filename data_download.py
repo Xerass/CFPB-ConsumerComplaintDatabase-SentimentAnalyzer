@@ -1,39 +1,42 @@
 """
-CFPB Balanced Dataset Builder v2 — with Label Normalization & Short Labels
-===========================================================================
+CFPB Balanced Dataset Builder v3 — Label Normalization + "Other" Class for OOD
+===============================================================================
 
 Builds a balanced multi-class dataset from the CFPB Consumer Complaint Database
-with two important upgrades over v1:
+with three upgrades:
 
 1. LABEL NORMALIZATION
    The CFPB renamed "Credit reporting or other personal consumer reports" to
    "Credit reporting, credit repair services, or other personal consumer
-   reports" in 2022, but BOTH names appear in the database. v1 treated these
-   as separate classes. v2 merges them into one canonical category BEFORE
-   counting, so they compete fairly with other categories for top-5 selection.
+   reports" in 2022, but BOTH names appear in the database. v2+ merges them
+   into one canonical category BEFORE counting so they compete fairly with
+   other categories for top-N selection.
 
 2. SHORT, MEANINGFUL CLASS LABELS
-   The raw CFPB labels are unwieldy (e.g., "Checking or savings account").
-   v2 maps them to clean short labels for confusion matrices and reports:
-       Checking or savings account                                -> Bank Account
-       Credit reporting [+ variants]                              -> Credit Reporting
-       Debt collection                                            -> Debt Collection
-       Mortgage                                                   -> Mortgage
-       Credit card or prepaid card                                -> Credit Card
-       (and similar mappings for any other top-5 categories)
+   Raw CFPB labels are unwieldy (e.g., "Checking or savings account"). They
+   are mapped to clean short labels for confusion matrices and reports.
 
-The output CSV's 'Product' column contains ONLY the short labels, so all
-downstream code (the v5 pipeline) just works without changes to label handling.
+3. "OTHER" CLASS for OUT-OF-SCOPE DETECTION
+   When INCLUDE_OTHER_CLASS=True, a 6th "Other" class is built by stratified
+   sampling across all DISCARDED normalized classes (Money Transfer, Student
+   Loan, Vehicle Loan, Personal Loan, Consumer Loan, Debt mgmt, Other
+   Financial). This lets a downstream classifier explicitly recognize "this
+   is a CFPB-style complaint but not one of my 5 in-scope topics" instead of
+   being forced to pick the closest top-5 class. Stratified sampling prevents
+   any single discarded class (e.g., Money Transfer with 116k rows) from
+   dominating the Other bucket — each contributes its fair share up to
+   availability, with deficits redistributed to larger pools.
 
 Output
 ------
-- cfpb_balanced_25k.csv   (5,000 rows per class x 5 classes = 25,000 total)
-- cfpb_class_summary.txt  (build report including raw->short label mapping)
+- cfpb_with_other_30k.csv   (5k/class x 5 + 5k Other = 30,000 total)  [default]
+  or cfpb_balanced_25k.csv  (5k/class x 5 = 25,000 total)             [legacy]
+- cfpb_class_summary.txt    (build report incl. raw->short label mapping)
 
 Run
 ---
 pip install pandas requests tqdm
-python build_cfpb_balanced_dataset_v2.py
+python data_download.py
 """
 
 import sys
@@ -50,13 +53,28 @@ from tqdm import tqdm
 CFPB_CSV_ZIP_URL = "https://files.consumerfinance.gov/ccdb/complaints.csv.zip"
 ZIP_PATH = Path("complaints.csv.zip")
 CSV_PATH = Path("complaints.csv")
-OUTPUT_CSV = Path("cfpb_balanced_25k.csv")
 SUMMARY_TXT = Path("cfpb_class_summary.txt")
 
 SAMPLES_PER_CLASS = 5000      # 5k per class
 NUM_CLASSES = 5               # top 5 distinct categories (post-normalization)
 RANDOM_SEED = 42
 CHUNK_SIZE = 100_000
+
+# ---- Out-of-Scope (Other) class config ----
+# When True, build a 6th "Other" class via stratified sampling across all
+# DISCARDED normalized classes (Money Transfer, Student Loan, Vehicle Loan,
+# Personal Loan, Consumer Loan, Debt mgmt, Other Financial). This gives the
+# downstream classifier an explicit way to recognize complaints that aren't
+# in the top-5 in-scope set, instead of being forced to pick the closest
+# in-scope class.
+INCLUDE_OTHER_CLASS = True
+OTHER_CLASS_NAME = "Other"
+SAMPLES_OTHER = SAMPLES_PER_CLASS  # match per-class size for balanced training
+
+OUTPUT_CSV = (
+    Path("cfpb_with_other_30k.csv") if INCLUDE_OTHER_CLASS
+    else Path("cfpb_balanced_25k.csv")
+)
 
 USED_COLS = [
     "Date received", "Product", "Sub-product", "Issue",
@@ -188,20 +206,27 @@ def count_normalized_classes():
 
 
 # ---------- Step 4: Collect balanced samples (using normalized labels) ----------
-def collect_balanced_sample(top_normalized_classes):
+def collect_balanced_sample(top_normalized_classes, include_other=False):
     """
     Stream the CSV again. For each row whose NORMALIZED label is in our top
     set, bucket it under that normalized label. Then sample SAMPLES_PER_CLASS
     from each bucket.
+
+    If include_other=True, also bucket rows from non-top normalized classes
+    so we can later build a stratified "Other" class for OOD detection.
     """
-    print(f"[...] Second pass: collecting rows for the top "
-          f"{NUM_CLASSES} normalized classes")
+    msg = f"[...] Second pass: collecting rows for the top {NUM_CLASSES} normalized classes"
+    if include_other:
+        msg += f" + '{OTHER_CLASS_NAME}' class ({SAMPLES_OTHER:,} rows from discarded classes)"
+    print(msg)
+
     reader = pd.read_csv(
         CSV_PATH, usecols=USED_COLS,
         chunksize=CHUNK_SIZE, dtype=str, low_memory=False,
     )
 
     buckets = {cls: [] for cls in top_normalized_classes}
+    other_buckets = {}  # normalized_label -> list of subframes (only if include_other)
     top_set = set(top_normalized_classes)
 
     for chunk in tqdm(reader, desc="Collecting", unit="chunk"):
@@ -215,17 +240,21 @@ def collect_balanced_sample(top_normalized_classes):
         chunk = chunk.copy()
         chunk[LABEL_COL] = chunk[LABEL_COL].map(normalize_label)
 
-        # Keep only rows in our chosen top set
-        chunk = chunk[chunk[LABEL_COL].isin(top_set)]
-        if chunk.empty:
-            continue
-
-        for cls, sub in chunk.groupby(LABEL_COL):
+        # Top classes
+        in_top = chunk[chunk[LABEL_COL].isin(top_set)]
+        for cls, sub in in_top.groupby(LABEL_COL):
             buckets[cls].append(sub)
 
-    print(f"[...] Downsampling each class to exactly "
+        # Discarded classes (for the Other bucket)
+        if include_other:
+            in_other = chunk[~chunk[LABEL_COL].isin(top_set) & chunk[LABEL_COL].notna()]
+            for cls, sub in in_other.groupby(LABEL_COL):
+                other_buckets.setdefault(cls, []).append(sub)
+
+    print(f"[...] Downsampling each top class to exactly "
           f"{SAMPLES_PER_CLASS:,} rows")
     sampled_frames = []
+    other_composition = {}  # for the build report
     for cls in top_normalized_classes:
         if not buckets[cls]:
             raise RuntimeError(f"No rows found for normalized class: {cls}")
@@ -242,20 +271,93 @@ def collect_balanced_sample(top_normalized_classes):
         print(f"    [OK] {cls:<25s}  "
               f"{len(full):>8,} available -> sampled {len(sampled):,}")
 
+    if include_other and other_buckets:
+        other_df, other_composition = build_other_class(other_buckets, SAMPLES_OTHER)
+        sampled_frames.append(other_df)
+        print(f"    [OK] {OTHER_CLASS_NAME:<25s}  -> "
+              f"sampled {len(other_df):,} from {len(other_buckets)} discarded classes")
+
     final_df = pd.concat(sampled_frames, ignore_index=True)
     final_df = final_df.sample(frac=1.0, random_state=RANDOM_SEED).reset_index(drop=True)
-    return final_df
+    return final_df, other_composition
+
+
+def build_other_class(other_buckets, total_samples):
+    """
+    Build the 'Other' class via stratified sampling across discarded classes.
+
+    Each discarded class contributes equally up to its availability (round 1).
+    Any deficit (from classes with too few rows) plus the remainder from
+    integer division is filled in round 2 by uniformly sampling the union of
+    leftover rows across all classes that had surplus. This prevents one big
+    class (e.g. Money Transfer with 116k rows) from dominating the Other
+    bucket while still using all available data.
+
+    Returns
+    -------
+    other_df : pd.DataFrame
+        DataFrame with LABEL_COL set to OTHER_CLASS_NAME for every row.
+    composition : dict[str, int]
+        Final per-source-class counts, for the build report.
+    """
+    concatenated = {
+        cls: pd.concat(frames, ignore_index=True)
+        for cls, frames in other_buckets.items()
+    }
+
+    n_classes = len(concatenated)
+    base_quota = total_samples // n_classes
+    remainder = total_samples - base_quota * n_classes
+
+    sampled_frames = []
+    composition = {}
+    surplus_pools = {}
+    deficit = remainder
+
+    # Round 1: equal-quota draw from each discarded class
+    for cls, df in concatenated.items():
+        n_avail = len(df)
+        take = min(base_quota, n_avail)
+        if take > 0:
+            sampled = df.sample(n=take, random_state=RANDOM_SEED)
+            sampled_frames.append(sampled)
+            composition[cls] = take
+            leftover = df.drop(sampled.index)
+            if len(leftover) > 0:
+                surplus_pools[cls] = leftover
+        else:
+            composition[cls] = 0
+        if n_avail < base_quota:
+            deficit += (base_quota - n_avail)
+
+    # Round 2: redistribute deficit + remainder across surplus pools (uniform)
+    if deficit > 0 and surplus_pools:
+        surplus_pool = pd.concat(surplus_pools.values(), ignore_index=True)
+        n_take = min(deficit, len(surplus_pool))
+        extra = surplus_pool.sample(n=n_take, random_state=RANDOM_SEED)
+        sampled_frames.append(extra)
+        # Update composition with round-2 contributions
+        for cls, count in extra[LABEL_COL].value_counts().items():
+            composition[cls] = composition.get(cls, 0) + int(count)
+
+    other_df = pd.concat(sampled_frames, ignore_index=True)
+    # Defensive truncate (shouldn't trigger, but harmless)
+    if len(other_df) > total_samples:
+        other_df = other_df.sample(n=total_samples, random_state=RANDOM_SEED)
+    other_df = other_df.reset_index(drop=True)
+    other_df[LABEL_COL] = OTHER_CLASS_NAME
+    return other_df, composition
 
 
 # ---------- Step 5: Save outputs ----------
 def save_outputs(final_df, class_counter, top_classes, raw_map,
-                 total_rows, total_with_text):
+                 total_rows, total_with_text, other_composition=None):
     final_df.to_csv(OUTPUT_CSV, index=False)
     print(f"[OK] Wrote balanced dataset -> {OUTPUT_CSV}  "
           f"({len(final_df):,} rows, {len(final_df.columns)} cols)")
 
     with open(SUMMARY_TXT, "w", encoding="utf-8") as f:
-        f.write("CFPB Balanced Dataset Build Summary (v2 with normalization)\n")
+        f.write("CFPB Balanced Dataset Build Summary (v3 with Other-class for OOD)\n")
         f.write("=" * 60 + "\n\n")
         f.write(f"Source: {CFPB_CSV_ZIP_URL}\n")
         f.write(f"Total rows in source CSV:       {total_rows:,}\n")
@@ -264,7 +366,12 @@ def save_outputs(final_df, class_counter, top_classes, raw_map,
         f.write("NORMALIZED class frequencies (rows with narrative present):\n")
         f.write("-" * 60 + "\n")
         for cls, n in class_counter.most_common():
-            marker = "  <-- SELECTED" if cls in top_classes else ""
+            if cls in top_classes:
+                marker = "  <-- SELECTED (in-scope)"
+            elif INCLUDE_OTHER_CLASS:
+                marker = "  <-- folded into 'Other'"
+            else:
+                marker = ""
             f.write(f"  {cls:<35s}  {n:>9,}{marker}\n")
 
         f.write("\nRaw -> normalized label mapping (only for selected classes):\n")
@@ -274,8 +381,16 @@ def save_outputs(final_df, class_counter, top_classes, raw_map,
             for raw in sorted(raw_map.get(cls, [])):
                 f.write(f"      <- {raw}\n")
 
+        if INCLUDE_OTHER_CLASS and other_composition:
+            f.write("\n'Other' class composition (stratified across discards):\n")
+            f.write("-" * 60 + "\n")
+            for cls, n in sorted(other_composition.items(), key=lambda x: -x[1]):
+                f.write(f"  {cls:<35s}  {n:>5,} rows\n")
+
         f.write(f"\nFinal dataset: {OUTPUT_CSV}\n")
-        f.write(f"  Classes:       {NUM_CLASSES}\n")
+        n_classes_out = NUM_CLASSES + (1 if INCLUDE_OTHER_CLASS else 0)
+        f.write(f"  Classes:       {n_classes_out}"
+                f"{' (5 in-scope + Other)' if INCLUDE_OTHER_CLASS else ''}\n")
         f.write(f"  Rows/class:    {SAMPLES_PER_CLASS:,}\n")
         f.write(f"  Total rows:    {len(final_df):,}\n")
         f.write(f"  Columns kept:  {', '.join(final_df.columns)}\n")
@@ -300,15 +415,19 @@ def main():
         print(f"  {i}. {cls:<25s}  ({counter[cls]:,} rows available)")
     print()
 
-    final_df = collect_balanced_sample(top_classes)
+    final_df, other_composition = collect_balanced_sample(
+        top_classes, include_other=INCLUDE_OTHER_CLASS
+    )
     save_outputs(final_df, counter, top_classes, raw_map,
-                 total_rows, total_with_text)
+                 total_rows, total_with_text, other_composition)
 
     print("\n[DONE] Balanced dataset ready:")
     print(f"       {OUTPUT_CSV.resolve()}")
     print(f"\nClass labels in the output:")
     for cls in top_classes:
         print(f"       - {cls}")
+    if INCLUDE_OTHER_CLASS:
+        print(f"       - {OTHER_CLASS_NAME}  (out-of-scope sentinel)")
 
 
 if __name__ == "__main__":
