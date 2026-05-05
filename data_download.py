@@ -30,7 +30,6 @@ with three upgrades:
 Output
 ------
 - cfpb_with_other_30k.csv   (5k/class x 5 + 5k Other = 30,000 total)  [default]
-  or cfpb_balanced_25k.csv  (5k/class x 5 = 25,000 total)             [legacy]
 - cfpb_class_summary.txt    (build report incl. raw->short label mapping)
 
 Run
