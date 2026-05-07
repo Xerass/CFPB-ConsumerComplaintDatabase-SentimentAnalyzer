@@ -1,0 +1,66 @@
+
+======================================================================
+Naive Bayes
+======================================================================
+Accuracy:        0.7907
+Macro Precision: 0.7907
+Macro Recall:    0.7907
+Macro F1:        0.7872
+
+                  precision    recall  f1-score   support
+
+    Bank Account     0.7724    0.8960    0.8296      1000
+     Credit Card     0.7562    0.7600    0.7581      1000
+Credit Reporting     0.7704    0.8220    0.7954      1000
+ Debt Collection     0.7526    0.7150    0.7333      1000
+        Mortgage     0.8857    0.9450    0.9144      1000
+           Other     0.8069    0.6060    0.6922      1000
+
+        accuracy                         0.7907      6000
+       macro avg     0.7907    0.7907    0.7872      6000
+    weighted avg     0.7907    0.7907    0.7872      6000
+
+
+======================================================================
+Linear SVM
+======================================================================
+Accuracy:        0.8227
+Macro Precision: 0.8223
+Macro Recall:    0.8227
+Macro F1:        0.8216
+
+                  precision    recall  f1-score   support
+
+    Bank Account     0.8288    0.8860    0.8565      1000
+     Credit Card     0.8103    0.8030    0.8066      1000
+Credit Reporting     0.8184    0.8290    0.8236      1000
+ Debt Collection     0.7643    0.8040    0.7836      1000
+        Mortgage     0.9234    0.9280    0.9257      1000
+           Other     0.7885    0.6860    0.7337      1000
+
+        accuracy                         0.8227      6000
+       macro avg     0.8223    0.8227    0.8216      6000
+    weighted avg     0.8223    0.8227    0.8216      6000
+
+
+======================================================================
+Neural Network (MLP)
+======================================================================
+Accuracy:        0.8125
+Macro Precision: 0.8175
+Macro Recall:    0.8125
+Macro F1:        0.8140
+
+                  precision    recall  f1-score   support
+
+    Bank Account     0.8700    0.8100    0.8389      1000
+     Credit Card     0.8074    0.7880    0.7976      1000
+Credit Reporting     0.8432    0.8010    0.8215      1000
+ Debt Collection     0.7460    0.8340    0.7875      1000
+        Mortgage     0.9525    0.9030    0.9271      1000
+           Other     0.6862    0.7390    0.7116      1000
+
+        accuracy                         0.8125      6000
+       macro avg     0.8175    0.8125    0.8140      6000
+    weighted avg     0.8175    0.8125    0.8140      6000
+

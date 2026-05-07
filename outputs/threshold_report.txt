@@ -1,0 +1,67 @@
+Threshold-based Out-of-Scope Rejection
+======================================================================
+Calibration target: keep ~95% of correctly-
+classified val samples (tau = the (1 - target) quantile of correct-
+prediction confidences on the val set).
+
+How to read this:
+  - Coverage:        fraction of test rows whose top-class confidence
+                     >= tau (i.e. accepted, not rejected as OOS).
+  - Acc(Accepted):   accuracy on those accepted predictions.
+                     Should be HIGHER than raw accuracy — that's the
+                     selective-classification gain from rejection.
+  - Per-class cov:   if a class has notably lower coverage, the model
+                     is uncertain about it. The 'Other' class is
+                     EXPECTED to have lower coverage (it's a mix of
+                     7 sub-topics — an inherently fuzzy bucket).
+
+======================================================================
+[Naive Bayes]
+======================================================================
+  tau (threshold):         0.6808
+  Raw accuracy:            0.7907
+  Test coverage:           0.9082  (5,449/6,000)
+  Rejection rate:          0.0918
+  Accuracy on accepted:    0.8302
+  Selective-class. gain:   +0.0396
+  Per-class coverage on test:
+    Bank Account               0.9190  (1,000 test rows)
+    Credit Card                0.9090  (1,000 test rows)
+    Credit Reporting           0.9300  (1,000 test rows)
+    Debt Collection            0.8730  (1,000 test rows)
+    Mortgage                   0.9680  (1,000 test rows)
+    Other                      0.8500  (1,000 test rows)
+
+======================================================================
+[Linear SVM]
+======================================================================
+  tau (threshold):         0.3160
+  Raw accuracy:            0.8227
+  Test coverage:           0.8967  (5,380/6,000)
+  Rejection rate:          0.1033
+  Accuracy on accepted:    0.8617
+  Selective-class. gain:   +0.0390
+  Per-class coverage on test:
+    Bank Account               0.9000  (1,000 test rows)
+    Credit Card                0.8740  (1,000 test rows)
+    Credit Reporting           0.9170  (1,000 test rows)
+    Debt Collection            0.8940  (1,000 test rows)
+    Mortgage                   0.9360  (1,000 test rows)
+    Other                      0.8590  (1,000 test rows)
+
+======================================================================
+[Neural Network (MLP)]
+======================================================================
+  tau (threshold):         0.4961
+  Raw accuracy:            0.8125
+  Test coverage:           0.9043  (5,426/6,000)
+  Rejection rate:          0.0957
+  Accuracy on accepted:    0.8540
+  Selective-class. gain:   +0.0415
+  Per-class coverage on test:
+    Bank Account               0.8850  (1,000 test rows)
+    Credit Card                0.8660  (1,000 test rows)
+    Credit Reporting           0.8950  (1,000 test rows)
+    Debt Collection            0.9200  (1,000 test rows)
+    Mortgage                   0.9440  (1,000 test rows)
+    Other                      0.9160  (1,000 test rows)
