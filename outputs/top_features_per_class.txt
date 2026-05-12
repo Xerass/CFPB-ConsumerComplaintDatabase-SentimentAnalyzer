@@ -1,103 +1,103 @@
 Top 15 word features per class (from Linear SVM)
 
 [Bank Account]
-  debit card                      +1.438
-  account                         +1.362
-  card payment                    +1.355
-  bank                            +1.237
-  chime                           +1.128
-  bill pay                        +1.118
-  pnc                             +1.102
-  debit                           +1.017
-  pay back                        +0.969
-  cd                              +0.968
-  want back                       +0.907
-  link account                    +0.873
-  credit back                     +0.865
-  deposit                         +0.864
-  provisional                     +0.850
+  debit card                      +1.451
+  account                         +1.376
+  card payment                    +1.360
+  bank                            +1.230
+  bill pay                        +1.128
+  debit                           +0.998
+  cd                              +0.982
+  pay back                        +0.973
+  want back                       +0.875
+  provisional                     +0.857
+  credit back                     +0.857
+  banking                         +0.847
+  deposit                         +0.835
+  bb                              +0.829
+  early warning                   +0.824
 
 [Credit Card]
-  card                            +3.319
-  amex                            +1.269
-  visa                            +1.211
-  credit account                  +1.147
-  back card                       +1.084
-  keep sending                    +0.967
-  card account                    +0.967
-  payment account                 +0.944
-  reporting negative              +0.933
-  personal credit                 +0.926
-  late account                    +0.920
-  rewards                         +0.910
-  charged interest                +0.908
-  best buy                        +0.875
-  accurate complete               +0.871
+  card                            +3.338
+  credit account                  +1.185
+  back card                       +1.077
+  card account                    +1.003
+  keep sending                    +0.981
+  payment account                 +0.973
+  reporting negative              +0.943
+  personal credit                 +0.931
+  rewards                         +0.929
+  late account                    +0.909
+  best buy                        +0.891
+  charged interest                +0.889
+  credit                          +0.885
+  accurate complete               +0.876
+  paid time                       +0.866
 
 [Credit Reporting]
-  following accounts              +0.982
-  report also                     +0.907
-  check credit                    +0.875
-  never received                  +0.859
-  medical debt                    +0.843
-  open accounts                   +0.814
-  health insurance                +0.801
+  following accounts              +0.970
+  report also                     +0.914
+  check credit                    +0.874
+  never received                  +0.862
+  medical debt                    +0.849
+  accounts belong                 +0.819
+  open accounts                   +0.816
+  health insurance                +0.808
   look credit                     +0.797
-  accounts                        +0.783
-  loan name                       +0.781
-  accounts belong                 +0.775
+  accounts                        +0.779
+  loan name                       +0.774
+  account late                    +0.758
+  report several                  +0.755
   accounts associated             +0.755
-  account late                    +0.754
   reporting practices             +0.741
-  reflect                         +0.740
 
 [Debt Collection]
-  debt                            +1.720
-  collection                      +1.502
+  debt                            +1.730
+  collection                      +1.517
   believe account                 +1.197
-  bank account                    +1.076
-  listed accounts                 +1.041
-  need remove                     +1.036
-  several accounts                +0.970
-  account credit                  +0.969
-  bill                            +0.927
-  owe                             +0.920
-  regarding fraudulent            +0.919
-  could please                    +0.881
+  bank account                    +1.070
+  listed accounts                 +1.033
+  need remove                     +1.030
+  several accounts                +0.964
+  account credit                  +0.957
+  bill                            +0.938
+  owe                             +0.925
+  regarding fraudulent            +0.917
+  could please                    +0.877
   fraud please                    +0.829
-  security breach                 +0.813
-  recovery                        +0.808
+  recovery                        +0.816
+  security breach                 +0.812
 
 [Mortgage]
-  mortgage                        +2.392
-  escrow                          +1.590
-  home                            +1.537
-  heloc                           +1.339
-  servicing                       +1.110
-  modification                    +1.065
-  refinance                       +1.045
-  property                        +0.978
-  loancare                        +0.947
-  closing                         +0.895
-  home loan                       +0.891
-  lender                          +0.871
+  mortgage                        +2.418
+  escrow                          +1.589
+  home                            +1.523
+  heloc                           +1.342
+  servicing                       +1.113
+  modification                    +1.057
+  refinance                       +1.031
+  property                        +1.001
+  loancare                        +0.952
+  closing                         +0.899
+  home loan                       +0.894
+  lender                          +0.881
   bsi                             +0.836
-  foreclosure                     +0.818
-  loan                            +0.808
+  foreclosure                     +0.810
+  appraisal                       +0.809
 
 [Other]
-  loan                            +1.562
-  line credit                     +1.538
-  car                             +1.529
-  affirm                          +1.278
-  money order                     +1.258
-  debt relief                     +1.205
-  mohela                          +1.168
-  im trying                       +1.099
-  auto                            +1.025
-  certegy                         +1.007
-  installment loan                +0.991
-  zelle                           +0.990
-  aes                             +0.990
-  ally financial                  +0.982
-  paypal account                  +0.954
+  loan                            +1.595
+  line credit                     +1.536
+  car                             +1.525
+  money order                     +1.255
+  debt relief                     +1.209
+  mohela                          +1.172
+  im trying                       +1.055
+  auto                            +1.023
+  certegy                         +1.009
+  installment loan                +0.993
+  aes                             +0.991
+  navient                         +0.952
+  hard pull                       +0.940
+  loans                           +0.933
+  repossession                    +0.928
